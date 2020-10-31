@@ -1,0 +1,75 @@
+---
+title: "Sección A"
+output: html_notebook
+---
+
+# A.2 Carpetas de investigación
+
+```{r include = FALSE}
+library(data.table)
+library(ggplot2)
+
+carpetas.inv <- readRDS("carpetas_inv.rds")
+carpetas.inv[, fecha_hechos := ymd_hm(fecha_hechos)]
+carpetas.inv[, fecha_inicio := ymd_hms(fecha_inicio)]
+
+```
+
+# 1) ¿Qué pruebas identificarías para asegurar la calidad de estos datos?
+Haría un resumen para cada una de las variables, tratando de identifcar si hay datos faltantes (NAs), si hay datos
+mixtos en una de las columnas (ej. el mes eté reportado como texto y/o número), que en las columnas donde haya un set
+limitado de opciones (ej. mes) no haya variantes de dichas opciones (ej. el mes de Marzo se haya escrito como 'marzo' u otra variante),
+que haya congruencia entre las alcaldías, colonias y calles.
+
+# 2) ¿Cuántos delitos registrados hay en la tabla? ¿Qué rango de tiempo consideran los datos?
+```{r include = F}
+
+num.delitos.unicos <- carpetas.inv[, uniqueN(delito)]
+fechas.min.max <- carpetas.inv[,
+                .(fecha.min.hechos = min(fecha_hechos, na.rm = T),
+                  fecha.max.hechos = max(fecha_hechos, na.rm = T),
+                  fecha.min.inicio = min(fecha_inicio, na.rm = T),
+                  fecha.max.inicio = max(fecha_inicio, na.rm = T) )
+                ]
+```
+El número de delitos únicos en los datos es de 338 y el rango de fechas es:
+```{r}
+fechas.min.max
+```
+
+# 3) ¿Cómo se distribuye el número de delitos en la CDMX? ¿Cuáles son los 5 delitos más frecuentes?
+
+```{r include = F}
+delitos <- carpetas.inv[, .(num.delitos = .N), delito]
+delitos[order(num.delitos, decreasing = T),]
+```
+Los 5 delitos más cometidos son : Violencia familiar, ROBO DE OBJETOS, ROBO A NEGOCIO SIN VIOLENCIA, FRAUDE y 
+ROBO A TRANSEUNTE EN VIA PUBLICA CON VIOLENCIA. La distribución del número de delitos es la siguiente 
+(hay 338 delitos diferentes y por lo tanto la visualización es dificil):
+
+```{r}
+#carpetas.inv[, delit]
+ggplot(carpetas.inv, aes(x=as.factor(delito))) + geom_bar()
+```
+
+# 4) Identifica los delitos que van a la alza y a la baja en la CDMX en el último año
+
+
+# 5) ¿Cuál es la alcaldía que más delitos tiene y cuál es la que menos?. ¿Por qué crees que sea esto?
+```{r}
+delitos.alcaldia <- carpetas.inv[, .(num.delitos = .N), alcaldia_hechos]
+delitos.alcaldia[order(num.delitos, decreasing = T),]
+delitos.alcaldia[order(num.delitos, decreasing = F),]
+```
+La alcaldía que tiene más delitos es CUAUHTEMOC y las que menos tienen están en la segunda table (son varias). La alcaldía
+Cuauhtemoc puede que tenga más delitos debido a que es una de las colonias del centro y la concentración de gente es elevada. 
+
+# 6) Dentro de cada alcaldía, cuáles son las tres colonias con más delitos
+
+```{r}
+delitos.alcaldia.colonia <- carpetas.inv[, .(num.delitos = .N), .(alcaldia_hechos, colonia_hechos)]
+delitos.alcaldia.colonia <- delitos.alcaldia.colonia[!is.na(colonia_hechos) ,]
+delitos.alcaldia.colonia[order(alcaldia_hechos, -num.delitos),head(num.delitos,3),,by = .(alcaldia_hechos, colonia_hechos)]
+```
+
+# 7) ¿Existe alguna tendencia estacional en la ocurrencia de delitos (mes, semana, día de la semana, quincenas)?
