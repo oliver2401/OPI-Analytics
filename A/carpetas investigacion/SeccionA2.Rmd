@@ -53,6 +53,21 @@ ggplot(carpetas.inv, aes(x=as.factor(delito))) + geom_bar()
 ```
 
 # 4) Identifica los delitos que van a la alza y a la baja en la CDMX en el último año
+```{r}
+alza.baja.delitos <- carpetas.inv[year(fecha_hechos) == 2018, semana := week(fecha_hechos)]
+alza.baja.delitos <- alza.baja.delitos[, .(num.delitos = .N), .(delito, semana)]
+alza.baja.delitos <- alza.baja.delitos[
+  order(delito, semana),
+  .(semana, pct.chg = (num.delitos - lag(num.delitos))/lag(num.delitos)),
+  .(delito)
+  ]
+
+delitos.baja <- alza.baja.delitos[pct.chg < 0, pct.chg := as.integer(pct.chg*100)]
+delitos.alza <- alza.baja.delitos[pct.chg > 0, pct.chg := as.integer(pct.chg*100)]
+
+delitos.baja
+delitos.alza
+```
 
 
 # 5) ¿Cuál es la alcaldía que más delitos tiene y cuál es la que menos?. ¿Por qué crees que sea esto?
@@ -69,7 +84,58 @@ Cuauhtemoc puede que tenga más delitos debido a que es una de las colonias del 
 ```{r}
 delitos.alcaldia.colonia <- carpetas.inv[, .(num.delitos = .N), .(alcaldia_hechos, colonia_hechos)]
 delitos.alcaldia.colonia <- delitos.alcaldia.colonia[!is.na(colonia_hechos) ,]
-delitos.alcaldia.colonia[order(alcaldia_hechos, -num.delitos),head(num.delitos,3),,by = .(alcaldia_hechos, colonia_hechos)]
+delitos.alcaldia.colonia <- delitos.alcaldia.colonia[, .SD[1:3], by = .(alcaldia_hechos, colonia_hechos)]
+delitos.alcaldia.colonia <- delitos.alcaldia.colonia[complete.cases(delitos.alcaldia.colonia),]
+delitos.alcaldia.colonia[order(alcaldia_hechos, -num.delitos), .SD[1:3], .(alcaldia_hechos)]
 ```
 
 # 7) ¿Existe alguna tendencia estacional en la ocurrencia de delitos (mes, semana, día de la semana, quincenas)?
+
+Tomamos en consideración solo el año 2018, ya que es el más reciente y también es la fecha máxima presente en nuestros datos.
+Al parecer el número de delitos aumenta en el primer semetre del año, y posteriormente se mantiene estable hasta disminuir en las fechas decembrinas.
+Si vemos la tendencia a nivel semana vemos un patrón similar, aumentan los delitos totales en el primer semestre del ao y después se empieza
+a nivelar, hasta que después hay una disminución por las fechas decembrinas. Si contabilizamos el número de delitos por día
+de la semana vemos que los viernes hay un ligero incremento en el número de delitos. Esto se pudiese deber a que usualmente
+es el día de cobro en muchas empresas y también por la mayor exposición que se tiene al salir del trabajo y dirigirse a
+algún lugar para recrearse.
+
+```{r}
+delitos.2018 <- carpetas.inv[year(fecha_hechos) == 2018,  ]
+delitos.2018.mes <- delitos.2018[, .(num.delitos = .N), month(fecha_hechos)]
+delitos.2018.mes <- delitos.2018.mes[order(month),]
+
+delitos.2018.week <- delitos.2018[, .(num.delitos = .N), week(fecha_hechos)]
+delitos.2018.week <- delitos.2018.week[order(week),]
+
+delitos.2018.day <- delitos.2018[, .(num.delitos = .N),  weekdays(fecha_hechos)]
+
+ggplot(delitos.2018.mes, aes(x=month, y = num.delitos)) + geom_line()
+ggplot(delitos.2018.week, aes(x=week, y = num.delitos)) + geom_line()
+delitos.2018.day
+```
+
+# 8) ¿Cuales son los delitos que más caracterizan a cada alcaldía? Es decir, delitos que
+suceden con mayor frecuencia en una alcaldía y con menor frecuencia en las demás.
+
+R: el delito característico para cada alcaldía se muestra en la siguiente tabla:
+
+```{r}
+delitos.alcaldia.carac <- carpetas.inv[, .(num.delitos = .N), .(delito, alcaldia_hechos)]
+delitos.alcaldia.carac[, .SD[1], alcaldia_hechos]
+```
+
+# 10) ¿Cómo diseñarías un indicador que midiera el nivel “inseguridad”? Diséñalo al nivel de desagregación que te parezca más adecuado (ej. manzana, calle, AGEB, etc.).
+
+R: Haría un indicador que midiera el porcentaje de cambio del número de delitos dada una colonia, semana del año y núm. de habitantes (algo como (#de delitos en la semana del año)/(#habitantes en colonia) y mediría el cambio semana a semana de este indicador)
+
+# 12) Toma los delitos clasificados como “Robo a pasajero a bordo de transporte público con y sin violencia”. ¿Cuáles son las ruta de transporte público donde más ocurren estos delitos?
+
+R: La calle que registra más delitos del tipo “Robo a pasajero a bordo de transporte público con y sin violencia” es Calzada Ignacio Zaragoza
+```{r}
+delitos.robo.pasajero <- carpetas.inv[
+  delito %in% c('ROBO A PASAJERO A BORDO DE TRANSPORTE PÚBLICO SIN VIOLENCIA', 'ROBO A PASAJERO A BORDO DE TRANSPORTE PÚBLICO CON VIOLENCIA'),
+  ]
+delitos.robo.pasajero <- delitos.robo.pasajero[, .(num.delitos= .N), .(calle_hechos)]
+delitos.robo.pasajero[order(-num.delitos),]
+```
+
