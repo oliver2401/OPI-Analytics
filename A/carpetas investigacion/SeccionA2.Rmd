@@ -5,6 +5,9 @@ output: html_notebook
 
 # A.2 Carpetas de investigación
 
+#NOTA IMPORTANTE. descargar el archivo "carpetas_inv.rds" y colocarlo en el mismo directorio de donde se ejecute este Notebook.
+# el link de descarga del archivo es el sig: 'https://1drv.ms/u/s!As4zvXVPTtlMl3T9OTGL53HF6LVK?e=gt0otS'
+
 ```{r include = FALSE}
 library(data.table)
 library(ggplot2)
