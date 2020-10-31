@@ -1,0 +1,76 @@
+---
+title: "Sección A"
+output: html_notebook
+---
+
+# Carga de Datos
+Iniciamos cargando los datos de la iniciativa BOPS para las ventas online (`bops_online`) y las ventas de las tiendas físicas (`bops_bm`)
+```{r include = FALSE}
+library(data.table)
+
+
+bops_bm <- readRDS("bops_bm.rds")
+bops_online <- readRDS("bops_online.rds")
+```
+
+## Ventas en USA
+Empezamos calculando el total de ventas online y bm antes y después de la implementación de la iniciativa BOPS para USA. Tambíen Calcularemos los porcentajes de perdida para cada tipo de venta.
+```{r include = F}
+sales.usa.bm <- bops_bm[usa == 1, .(total.sales.bm = sum(sales)) , after]
+sales.usa.online <- bops_online[, .(total.sales.online = sum(sales)) , after]
+total.usa.sales <- merge(sales.usa.bm, sales.usa.online, by = 'after')
+total.usa.sales[, full.total.sales := total.sales.bm + total.sales.online, after]
+usa.percent.lost <- (total.usa.sales[2, -1] / total.usa.sales[1, -1])-1
+usa.percent.lost <- usa.percent.lost[, .(
+  total.sales.bm.pct.loss = total.sales.bm,
+  total.sales.online.pct.loss = total.sales.online,
+  full.total.sales.pct.loss = full.total.sales)
+  ]
+```
+
+En la siguiente tabla se muestran los resultados para cada tipo de venta (BM, online y total) antes y despúes de la
+implementación y sus respectivos porcentajes de pérdida.
+```{r}
+total.usa.sales
+usa.percent.lost
+```
+También hacemos el mismo procedimiento para las ventas en Canadá
+```{r include = F}
+canada.sales <- bops_bm[usa == 0, .(total.sales.bm = sum(sales)), after]
+canada.percent.lost <- (canada.sales[2, -1] / canada.sales[1, -1])-1
+
+```
+
+```{r}
+canada.sales
+canada.percent.lost
+```
+
+De los datos anteriores se observa que probablemente la iniciativa BOPS no contribuyó a la disminución de ventas después
+de su implementación, ya que si ese fuera el caso las ventas en Canada no hubieran sido afectadas y no habría un decremento
+en Canadá (dado que el reporte indica que BOPS solo se lanzó en USA). También se observa que los porcentajes de perdida
+en ambos territorios son muy similares (aprox. 13% en USA y 15% en Canadá)
+
+# Suposiciones
+
+Ahora supongamos que BOPS permitió que las ventas en USA no fueran tan drásticas. En este caso tambíen supondremos que
+ambos mercados son similares y tienen el mismo comportamiento en el rubro de 'Home & Kitchen'. Un modelo básico que se puede utilizar sería
+el de proyectar cuales hubieran sido las pérdidas en USA si no se hubiera implementado BOPS tomando como referencia las 
+pérdidas en Canadá.
+
+```{r include = F}
+usa.losses.wo.bops <- usa.percent.lost*(1 - canada.percent.lost$total.sales.bm)
+canada.pct.gain <--(canada.percent.lost$total.sales.bm - canada.percent.lost$total.sales.bm*(1 + usa.percent.lost$total.sales.bm.pct.loss))
+```
+
+En este escenario el porcentaje de pérdidas en USA sería el siguiente:
+```{r}
+usa.losses.wo.bops
+```
+El caso contrario para Canadá, si dicho territorio hubiera implementado el programa sus pérdidas hubieran disminuido
+en `canada.pct.gain`%.
+
+Con los datos proporcionados y basandonos en números frios podríamos concluir que sería una buena idea implementar BOPS 
+en territorio canadiense. Sin embargo debido a que los porcentajes de ganancia/pérdida para ambos territorios al
+implementar o no el programa son muy pequeños (aprox. 2%) tendríamos que hacer un análisis más profundo para definir si
+ese porcentaje de ganancia al implementar BOPS no es por azar y/o debido al tiempo elegido como referencia (6 meses antes y después).
